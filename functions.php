@@ -14,7 +14,7 @@ function getConnection(): PDO
         global $dbdriver, $dbhost, $dbport, $dbname, $dbusername, $dbpassword;
 
         $dsn = "$dbdriver:host=$dbhost;port=$dbport;dbname=$dbname;charset=utf8";
-        echo $dsn;
+        #echo $dsn;
 
         try {
             $conn = new PDO($dsn, $dbusername, $dbpassword, [
@@ -99,49 +99,105 @@ function queryJoint(
 
 
 /**
- * Récupère toutes les lignes d'une table avec pagination complète
+ * Récupère toutes les lignes d'une table avec pagination et filtre par intervalle
  *
  * @param string $table Nom de la table
  * @param int $page Page actuelle
  * @param int $limit Nombre d'éléments par page
+ * @param string|null $interval 'today', 'week', 'month', 'year', ou null pour tout
+ * @param string $dateColumn Nom de la colonne date à utiliser (par défaut 'created_at')
  *
  * @return array ['data' => [...], 'total' => int, 'totalPages' => int, 'currentPage' => int]
  */
-function getAll(string $table, int $page = 1, int $limit = 10): array
+function getAll(string $table, int $page = 1, int $limit = 10, ?string $interval = null, string $dateColumn = 'created_at'): array
 {
     $offset = ($page - 1) * $limit;
+    $where = '';
+
+    if ($interval) {
+        switch ($interval) {
+            case 'today':
+                $where = "WHERE DATE(`$dateColumn`) = CURDATE()";
+                break;
+            case 'week':
+                $where = "WHERE YEARWEEK(`$dateColumn`, 1) = YEARWEEK(CURDATE(), 1)";
+                break;
+            case 'month':
+                $where = "WHERE YEAR(`$dateColumn`) = YEAR(CURDATE()) AND MONTH(`$dateColumn`) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $where = "WHERE YEAR(`$dateColumn`) = YEAR(CURDATE())";
+                break;
+            default:
+                $where = '';
+                break;
+        }
+    }
 
     // Récupérer les résultats
-    $stmt = getConnection()->prepare("SELECT * FROM `$table` LIMIT :limit OFFSET :offset");
+    $stmt = getConnection()->prepare("SELECT * FROM `$table` $where LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Récupérer le total
-    $stmt = getConnection()->prepare("SELECT COUNT(*) AS total FROM `$table`");
+    $stmt = getConnection()->prepare("SELECT COUNT(*) AS total FROM `$table` $where");
     $stmt->execute();
     $total = (int) $stmt->fetch()['total'];
 
     return [
-        'data'       => $data,
-        'total'      => $total,
-        'totalPages' => ceil($total / $limit),
-        'currentPage'=> $page
+        'data'        => $data,
+        'total'       => $total,
+        'totalPages'  => ceil($total / $limit),
+        'currentPage' => $page
     ];
 }
 
 
+
 /**
- * Compte toutes les lignes d'une table
+ * Compte toutes les lignes d'une table avec option de filtre par intervalle de temps
+ *
+ * @param string $table Nom de la table
+ * @param string|null $interval 'today', 'week', 'month', 'year', ou null pour tout
+ * @param string $dateColumn Nom de la colonne date à utiliser (par défaut 'created_at')
+ *
+ * @return int
  */
-function getCountAll(string $table): int
+function getCountAll(string $table, ?string $interval = null, string $dateColumn = 'created_at'): int
 {
-    $stmt = getConnection()->prepare("SELECT COUNT(*) AS total FROM $table");
-    $stmt->execute();
+    $sql = "SELECT COUNT(*) AS total FROM `$table`";
+    $params = [];
+
+    if ($interval) {
+        switch ($interval) {
+            case 'today':
+                $sql .= " WHERE DATE(`$dateColumn`) = CURDATE()";
+                break;
+            case 'week':
+                $sql .= " WHERE YEARWEEK(`$dateColumn`, 1) = YEARWEEK(CURDATE(), 1)";
+                break;
+            case 'month':
+                $sql .= " WHERE YEAR(`$dateColumn`) = YEAR(CURDATE()) AND MONTH(`$dateColumn`) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $sql .= " WHERE YEAR(`$dateColumn`) = YEAR(CURDATE())";
+                break;
+            case 'all':
+            default:
+                // pas de filtre
+                break;
+        }
+    }
+
+    $stmt = getConnection()->prepare($sql);
+    $stmt->execute($params);
     $result = $stmt->fetch();
+
     return (int) $result['total'];
 }
+
 
 /**
  * Récupère une seule ligne selon une colonne
@@ -442,8 +498,8 @@ function logout(): void
     if (isset($_SESSION['user'])) {
         unset($_SESSION['user']);
         session_destroy();
-        redirectToUrl("/index.php");
     }
+    redirectToUrl("/index.php");
 }
 
 function isAdmin(): void {
@@ -634,7 +690,22 @@ function displayFlash(): void
  * @param string $input Donnée à nettoyer
  * @return string Donnée nettoyée
  */
-function sanitizeInput(string $input): string
+function sanitizeInput(string $input, bool $set_lower = false): string
 {
-    return trim(strip_tags($input));
+    // Trim + supprime balises HTML
+    $clean = trim(strip_tags($input));
+
+    // Supprime les caractères de contrôle invisibles (sécurité + propreté)
+    $clean = preg_replace('/[\x00-\x1F\x7F]/u', '', $clean);
+
+    // Normalisation unicode (évite les caractères chelous)
+    if (class_exists('Normalizer')) {
+        $clean = Normalizer::normalize($clean, Normalizer::FORM_C);
+    }
+
+    // Force lowercase si demandé
+    return $set_lower ? mb_strtolower($clean, 'UTF-8') : $clean;
 }
+
+
+createDefaultAdmin(email: "admin1@gmail.com", password: "admin01");
