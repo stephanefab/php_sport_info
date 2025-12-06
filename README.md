@@ -47,6 +47,20 @@ CREATE TABLE matches (
     FOREIGN KEY (team_away_id) REFERENCES teams(id)
 );
 
+CREATE TABLE `match_types` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL,
+    `description` TEXT DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE `matches`
+ADD COLUMN `match_type_id` INT UNSIGNED DEFAULT NULL AFTER `id`,
+ADD CONSTRAINT `fk_matches_match_type`
+    FOREIGN KEY (`match_type_id`) REFERENCES `match_types`(`id`)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE;
+
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
