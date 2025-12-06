@@ -36,6 +36,66 @@ function query(string $sql, array $params = [])
     return $stmt;
 }
 
+/**
+ * Effectue une jointure entre deux tables avec options de filtre
+ * Exemple
+ * $results = queryJoint(
+ * 'teams',
+ * 'team_sports',
+ * 'id',
+ * 'team_id',
+ * ['t2.sport_id' => 1],
+ * 'LEFT',
+ * ['t1.name AS team_name', 't2.sport_id']
+ * );
+ *
+ * @param string $table1 Première table
+ * @param string $table2 Deuxième table
+ * @param string $joinColumn1 Colonne de la première table pour la jointure
+ * @param string $joinColumn2 Colonne de la deuxième table pour la jointure
+ * @param array $where Tableau associatif [colonne => valeur] pour le WHERE (facultatif)
+ * @param string $joinType Type de jointure : INNER, LEFT, RIGHT (par défaut INNER)
+ * @param array|string $select Colonnes à sélectionner ou '*' pour toutes
+ *
+ * @return array Résultat de la jointure
+ */
+function queryJoint(
+    string $table1,
+    string $table2,
+    string $joinColumn1,
+    string $joinColumn2,
+    array $where = [],
+    string $joinType = 'INNER',
+    array|string $select = '*'
+): array
+{
+    // Gestion des colonnes à sélectionner
+    $selectClause = is_array($select) ? implode(', ', $select) : $select;
+
+    // Construire la clause WHERE si nécessaire
+    $whereClause = '';
+    if (!empty($where)) {
+        $conds = [];
+        foreach ($where as $col => $val) {
+            $conds[] = "$col = :$col";
+        }
+        $whereClause = 'WHERE ' . implode(' AND ', $conds);
+    }
+
+    // Construire la requête
+    $sql = "
+        SELECT $selectClause
+        FROM `$table1` t1
+        $joinType JOIN `$table2` t2
+        ON t1.`$joinColumn1` = t2.`$joinColumn2`
+        $whereClause
+    ";
+
+    $stmt = query($sql, $where);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
 
 /**
  * Récupère toutes les lignes d'une table avec pagination complète
