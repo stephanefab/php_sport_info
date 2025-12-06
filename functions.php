@@ -1,0 +1,357 @@
+<?php
+session_start();
+
+require_once __DIR__ . '/config.php';
+
+/**
+ * Retourne la connexion PDO (singleton)
+ */
+function getConnection(): PDO
+{
+    static $conn = null;
+
+    if ($conn === null) {
+        global $driver, $host, $port, $dbname, $username, $password;
+
+        $dsn = "$driver:host=$host;port=$port;dbname=$dbname;charset=utf8";
+
+        try {
+            $conn = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false
+            ]);
+        } catch (PDOException $e) {
+            die('Erreur de connexion : ' . $e->getMessage());
+        }
+    }
+
+    return $conn;
+}
+
+function query(string $sql, array $params = [])
+{
+    $stmt = getConnection()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt;
+}
+
+
+/**
+ * Récupère toutes les lignes d'une table avec pagination complète
+ *
+ * @param string $table Nom de la table
+ * @param int $page Page actuelle
+ * @param int $limit Nombre d'éléments par page
+ *
+ * @return array ['data' => [...], 'total' => int, 'totalPages' => int, 'currentPage' => int]
+ */
+function getAll(string $table, int $page = 1, int $limit = 10): array
+{
+    $offset = ($page - 1) * $limit;
+
+    // Récupérer les résultats
+    $stmt = getConnection()->prepare("SELECT * FROM `$table` LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Récupérer le total
+    $stmt = getConnection()->prepare("SELECT COUNT(*) AS total FROM `$table`");
+    $stmt->execute();
+    $total = (int) $stmt->fetch()['total'];
+
+    return [
+        'data'       => $data,
+        'total'      => $total,
+        'totalPages' => ceil($total / $limit),
+        'currentPage'=> $page
+    ];
+}
+
+
+/**
+ * Compte toutes les lignes d'une table
+ */
+function getCountAll(string $table): int
+{
+    $stmt = getConnection()->prepare("SELECT COUNT(*) AS total FROM $table");
+    $stmt->execute();
+    $result = $stmt->fetch();
+    return (int) $result['total'];
+}
+
+/**
+ * Récupère une seule ligne selon une colonne
+ */
+function getOneByColumn(string $table, string $columnName, mixed $value): ?array
+{
+    $stmt = getConnection()->prepare("SELECT * FROM $table WHERE $columnName = :val LIMIT 1");
+    $stmt->bindValue(':val', $value);
+    $stmt->execute();
+
+    return $stmt->fetch() ?: null;
+}
+
+/**
+ * Recherche un terme dans plusieurs colonnes d'une table avec LIKE et pagination complète
+ *
+ * @param string $table Nom de la table
+ * @param array $columns Colonnes dans lesquelles effectuer la recherche
+ * @param string $term Terme à rechercher
+ * @param int $page Page actuelle
+ * @param int $limit Nombre d'éléments par page
+ *
+ * @return array ['data' => [...], 'total' => int, 'totalPages' => int, 'currentPage' => int]
+ */
+function search(string $table, array $columns, string $term, int $page = 1, int $limit = 10): array
+{
+    if (empty($columns)) return [
+        'data' => [],
+        'total' => 0,
+        'totalPages' => 0,
+        'currentPage' => $page
+    ];
+
+    $offset = ($page - 1) * $limit;
+
+    $where = implode(' OR ', array_map(fn($col) => "$col LIKE :term", $columns));
+
+    // Récupérer les résultats
+    $stmt = getConnection()->prepare("SELECT * FROM `$table` WHERE $where LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':term', "%$term%");
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Récupérer le total
+    $stmt = getConnection()->prepare("SELECT COUNT(*) AS total FROM `$table` WHERE $where");
+    $stmt->bindValue(':term', "%$term%");
+    $stmt->execute();
+    $total = (int) $stmt->fetch()['total'];
+
+    return [
+        'data'       => $data,
+        'total'      => $total,
+        'totalPages' => ceil($total / $limit),
+        'currentPage'=> $page
+    ];
+}
+
+
+
+/**
+ * Insère une nouvelle ligne dans une table de la base de données.
+ *
+ * Cette fonction prend le nom de la table et un tableau associatif des colonnes
+ * et valeurs à insérer. Elle utilise des requêtes préparées PDO pour éviter
+ * les injections SQL.
+ *
+ * Exemple :
+ * ```php
+ * $newUserId = insert('users', [
+ *     'name'  => 'Fabien Brou',
+ *     'email' => 'fabien@example.com'
+ * ]);
+ * echo "Nouvel utilisateur créé avec l'ID : $newUserId";
+ * ```
+ *
+ * @param string $table Nom de la table dans laquelle insérer la ligne.
+ * @param array $data Tableau associatif ['colonne' => 'valeur', ...] représentant les colonnes et leurs valeurs.
+ *
+ * @return int L'ID de la nouvelle ligne insérée (lastInsertId).
+ *
+ * @throws PDOException Si la requête échoue.
+ */
+function insert(string $table, array $data): int
+{
+    $columns = implode(', ', array_keys($data));
+    $placeholders = implode(', ', array_map(fn($key) => ":$key", array_keys($data)));
+
+    $sql = "INSERT INTO `$table` ($columns) VALUES ($placeholders)";
+    $stmt = getConnection()->prepare($sql);
+
+    foreach ($data as $key => $value) {
+        $stmt->bindValue(":$key", $value);
+    }
+
+    $stmt->execute();
+    return getConnection()->lastInsertId();
+}
+
+
+/**
+ * Met à jour une ligne dans une table de la base de données.
+ *
+ * Cette fonction met à jour les colonnes spécifiées pour une ligne identifiée par son ID.
+ * Elle utilise des requêtes préparées PDO pour éviter les injections SQL.
+ *
+ * Exemple :
+ * ```php
+ * $success = update('users', 5, [
+ *     'name'  => 'Fabien B.',
+ *     'email' => 'fabienb@example.com'
+ * ]);
+ * if ($success) {
+ *     echo "Utilisateur mis à jour avec succès !";
+ * } else {
+ *     echo "Échec de la mise à jour.";
+ * }
+ * ```
+ *
+ * @param string $table Nom de la table à mettre à jour.
+ * @param int $id ID de la ligne à modifier.
+ * @param array $data Tableau associatif ['colonne' => 'valeur', ...] des colonnes à mettre à jour.
+ * @param string $idColumn Nom de la colonne identifiant la ligne (par défaut 'id').
+ *
+ * @return bool TRUE si la mise à jour a réussi, FALSE sinon.
+ *
+ * @throws PDOException Si la requête échoue.
+ */
+function update(string $table, int $id, array $data, string $idColumn = 'id'): bool
+{
+    $setClause = implode(', ', array_map(fn($key) => "$key = :$key", array_keys($data)));
+
+    $sql = "UPDATE `$table` SET $setClause WHERE $idColumn = :id";
+    $stmt = getConnection()->prepare($sql);
+
+    foreach ($data as $key => $value) {
+        $stmt->bindValue(":$key", $value);
+    }
+
+    $stmt->bindValue(':id', $id);
+    return $stmt->execute();
+}
+
+
+
+/**
+ * Supprime une ligne d'une table de la base de données.
+ *
+ * Cette fonction supprime une ligne identifiée par son ID (ou une autre colonne spécifiée).
+ * Elle utilise une requête préparée PDO pour éviter les injections SQL.
+ *
+ * Exemple :
+ * ```php
+ * $deleted = delete('users', 7);
+ * if ($deleted) {
+ *     echo "Utilisateur supprimé !";
+ * } else {
+ *     echo "Impossible de supprimer l'utilisateur.";
+ * }
+ * ```
+ *
+ * @param string $table Nom de la table dans laquelle supprimer la ligne.
+ * @param int $id ID (ou valeur de la colonne identifiant) de la ligne à supprimer.
+ * @param string $idColumn Nom de la colonne identifiant la ligne (par défaut 'id').
+ *
+ * @return bool TRUE si la suppression a réussi, FALSE sinon.
+ *
+ * @throws PDOException Si la requête échoue.
+ */
+function delete(string $table, int $id, string $idColumn = 'id'): bool
+{
+    $sql = "DELETE FROM `$table` WHERE $idColumn = :id";
+    $stmt = getConnection()->prepare($sql);
+    $stmt->bindValue(':id', $id);
+
+    return $stmt->execute();
+}
+
+/**
+ * Crée un administrateur par défaut si aucun utilisateur n'existe
+ *
+ * @param string $name
+ * @param string $email
+ * @param string $password
+ * @return int ID de l'utilisateur créé ou existant
+ */
+function createDefaultAdmin(string $name = 'Admin', string $email = 'admin@example.com', string $password = 'admin123'): int
+{
+    // Vérifier s'il existe déjà un admin
+    $existingAdmin = getOneByColumn('users', 'role', 'admin');
+    if ($existingAdmin) {
+        return (int) $existingAdmin['id'];
+    }
+
+    // Créer le compte admin
+    return insert('users', [
+        'name'     => $name,
+        'email'    => $email,
+        'password' => password_hash($password, PASSWORD_DEFAULT),
+        'role'     => 'admin'
+    ]);
+}
+
+/**
+ * Crée un utilisateur normal
+ *
+ * @param string $name
+ * @param string $email
+ * @param string $password
+ * @return int ID de l'utilisateur créé
+ */
+function createUser(string $name, string $email, string $password): int
+{
+    return insert('users', [
+        'name'     => $name,
+        'email'    => $email,
+        'password' => password_hash($password, PASSWORD_DEFAULT),
+        'role'     => 'user'
+    ]);
+}
+
+
+/**
+ * Authentifie un utilisateur
+ *
+ * @param string $email
+ * @param string $password
+ * @return bool TRUE si connexion réussie, FALSE sinon
+ */
+function login(string $email, string $password): bool
+{
+    // Récupérer l'utilisateur par email
+    $user = getOneByColumn('users', 'email', $email);
+
+    if (!$user) {
+        return false; // utilisateur inexistant
+    }
+
+    // Vérifier le mot de passe
+    if (!password_verify($password, $user['password'])) {
+        return false; // mot de passe incorrect
+    }
+
+    // Stocker les informations de l'utilisateur dans la session
+    $_SESSION['user'] = [
+        'id'    => $user['id'],
+        'name'  => $user['name'],
+        'email' => $user['email'],
+        'role'  => $user['role']
+    ];
+
+    return true;
+}
+
+/**
+ * Déconnecte l'utilisateur courant
+ */
+function logout(): bool
+{
+    // Détruire la session
+    if (isset($_SESSION['user'])) {
+        unset($_SESSION['user']);
+        session_destroy();
+        return true;
+    }
+
+    // Optionnel : détruire complètement la session
+    return false;
+}
+
+function isAdmin(): bool {
+    return isset($_SESSION['user']) && $_SESSION['user']['role'] === 'admin';
+}
