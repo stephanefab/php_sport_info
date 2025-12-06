@@ -90,3 +90,71 @@ if (isset($_FILES['avatar'])) {
         echo "Fichier invalide ou trop lourd.";
     }
 }
+
+schema
+
+
+    ┌─────────────────────┐
+                         │   getConnection()   │
+                         │  (PDO singleton)   │
+                         └─────────┬──────────┘
+                                   │
+          ┌────────────────────────┴─────────────────────────┐
+          │                                                  │
+┌───────────────────────┐                          ┌───────────────────────┐
+│        CRUD / DB       │                          │        Auth           │
+└─────────┬─────────────┘                          └─────────┬─────────────┘
+          │                                                  │
+ ┌────────┴────────┐                              ┌──────────┴───────────┐
+ │  Basic Queries  │                              │  Session / User      │
+ └────────┬────────┘                              └──────────┬───────────┘
+          │                                                  │
+ ┌────────┴────────┐                        ┌────────────────┴──────────────┐
+ │  getAll()       │                        │ login()                       │
+ │  getCountAll()  │                        │ logout()                      │
+ │  getOneByColumn()│                       │ isLogged()                    │
+ │  search()       │                        │ getCurrentUser()              │
+ │  query()        │                        │ createDefaultAdmin()          │
+ │  queryJoint()   │                        │ createUser()                  │
+ │  insert()       │                        │ updatePassword()              │
+ │  update()       │                        │ isAdmin()                     │
+ │  delete()       │                        │ isUser()                      │
+ └─────────────────┘                        └──────────────────────────────┘
+
+    │
+          │
+ ┌────────┴─────────┐
+ │   Upload / Files │
+ └────────┬─────────┘
+          │
+ ┌────────┴────────────┐
+ │ checkUpload()       │
+ │ saveUploadWithFolders() │
+ │ getUploadUrl()      │
+ └─────────────────────┘
+
+    │
+          │
+ ┌────────┴────────────┐
+ │ Redirect Helpers    │
+ └────────┬────────────┘
+          │
+ ┌────────┴───────────┐
+ │ redirectToUrl()    │
+ │ redirectToLogin()  │
+ └────────────────────┘
+
+
+### Explications
+
+1. **Connexion à la DB**
+   * `getConnection()` est la base : toutes les fonctions DB (CRUD, jointures, recherches) en dépendent.
+2. **CRUD / DB**
+   * Fonctions génériques : `getAll`, `search`, `insert`, `update`, `delete`.
+   * `query()` et `queryJoint()` permettent des requêtes plus flexibles et des jointures.
+3. **Auth / Session / Users**
+   * Tout ce qui gère la connexion, déconnexion, création d’utilisateurs et vérifications de rôle.
+4. **Upload / Fichiers**
+   * Vérification, sauvegarde et génération d’URL pour les fichiers uploadés.
+5. **Redirections**
+   * Helpers simples pour rediriger l’utilisateur, utilisés par auth et upload si nécessaire.
