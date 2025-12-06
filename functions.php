@@ -486,3 +486,14 @@ function getUploadUrl(string $filePath, string $baseDir = 'uploads'): string
 
     return $baseDir . '/' . $relativePath;
 }
+
+function redirectToUrl(string $url): void
+{
+    header("Location: $url");
+    exit();
+}
+
+function redirectToLogin(): void
+{
+    redirectToUrl("/login.php");
+}
