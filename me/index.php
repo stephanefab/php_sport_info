@@ -1,6 +1,6 @@
 <?php
     require_once __DIR__ . '/../functions.php';
-    isAdmin();
+    isUser();
 ?>
 
 <?php include_once __DIR__ . '/include/header.php'; ?>
