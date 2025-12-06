@@ -24,6 +24,10 @@ if (isset($_POST['submit_form'])) {
         setFlashMessage("L'url de l'image n'est pas correcte", 'error');
     }
 
+    if(getOneByColumn("pays", "name", $name)){
+        setFlashMessage("Le nom du pays exite déjà", "error");
+    }
+
     // Si pas d'erreurs de validation
     if (!hasErrors()) {
         $inserted = insert("pays", [
@@ -34,6 +38,12 @@ if (isset($_POST['submit_form'])) {
 
         if ($inserted) {
             setFlashMessage("Pays enregistré: $name", "success");
+            $inserted = insert("teams", [
+                "name"       => $name,
+                "type"       => 'national',
+                "country_id" => $inserted,
+                "path"       => $path,
+            ]);
             unset($name, $code_iso, $path);
             redirectToUrl("/admin/countries");
         } else {
