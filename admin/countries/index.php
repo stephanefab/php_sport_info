@@ -3,8 +3,9 @@ require_once __DIR__ . '/../../functions.php';
 isAdmin();
 $user = getCurrentUser();
 
-$page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
-$countries = getAll("pays", $page, 20);
+$page = (isset($_GET['page']) && is_numeric($_GET['page'])) ? (int) $_GET['page'] : 1;
+$countries = getAll("pays", $page, 50);
+$count = getCountAll("pays");
 ?>
 
 <?php include_once __DIR__ . '/../include/header.php'; ?>
@@ -12,7 +13,7 @@ $countries = getAll("pays", $page, 20);
 <div class="container my-4">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">Gestion des Pays</h2>
+        <h2 class="fw-bold">Gestion des Pays (<?= $count; ?>)</h2>
         <a href="/admin/countries/create.php" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Ajouter un pays
         </a>
@@ -23,7 +24,6 @@ $countries = getAll("pays", $page, 20);
             <table class="table table-hover mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th>#</th>
                         <th>Nom</th>
                         <th>Code</th>
                         <th>-</th>
@@ -34,13 +34,12 @@ $countries = getAll("pays", $page, 20);
                 <tbody>
 
                     <?php foreach ($countries['data'] as $c): ?>
-                        <tr>
-                            <td><?= $c['id'] ?></td>
-                            <td><?= htmlspecialchars($c['name']) ?></td>
-                            <td><?= htmlspecialchars($c['code_iso']) ?></td>
+                        <tr id="<?= $c['id'] ?>">
+                            <td><?= mb_strtoupper($c['name']) ?></td>
+                            <td><?= mb_strtoupper($c['code_iso']) ?></td>
                             <td style="text-align:center;">
-                                <figure style="margin:0;">
-                                    <img src="<?= htmlspecialchars($c['path']) ?>" alt="<?= $c['code_iso']; ?>"
+                                <figure style="margin:0; border:1px solid;">
+                                    <img src="<?= $c['path'] ?>" alt="<?= $c['code_iso']; ?>"
                                         style="width:40px; height:auto; display:block; margin:auto;">
                                 </figure>
                             </td>

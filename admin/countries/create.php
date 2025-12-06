@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../functions.php';
 isAdmin();
 $user = getCurrentUser();
 
-if ($_POST) {
+if (isset($_POST['submit_form'])) {
     $name = sanitizeInput($_POST['name'] ?? '', 1);
     $code_iso = sanitizeInput($_POST['code_iso'] ?? '', 1);
     $path = sanitizeInput($_POST['path'] ?? '');
@@ -45,7 +45,12 @@ if ($_POST) {
 
 <?php include_once __DIR__ . '/../include/header.php'; ?>
 <div class="container my-4">
-    <h2 class="fw-bold mb-4">Ajouter un pays</h2>
+         <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-4">Ajouter un pays</h2>
+        <a href="/admin/countries" class="btn btn-dark">
+            Retour
+        </a>
+    </div>
     <form action="" method="post" enctype="multipart/form-data">
         <?= displayFlash(); ?>
 
@@ -65,7 +70,7 @@ if ($_POST) {
             <input type="url" class="form-control" id="path" name="path" value="<?= $path ?? '' ?>">
         </div>
 
-        <button type="submit" class="btn btn-primary">Envoyer</button>
+        <button type="submit" name="submit_form" class="btn btn-primary">Envoyer</button>
     </form>
 </div>
 <?php include_once __DIR__ . '/../include/footer.php'; ?>
