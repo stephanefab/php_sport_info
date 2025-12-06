@@ -1,6 +1,9 @@
 <?php
     require_once __DIR__ . '/../functions.php';
-    isUser();
+    if(!isLogged()){
+        redirectToLogin();
+    }
+    $user = getCurrentUser();
 ?>
 
 <?php include_once __DIR__ . '/include/header.php'; ?>
