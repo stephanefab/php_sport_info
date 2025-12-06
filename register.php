@@ -1,29 +1,48 @@
 <?php
 require_once __DIR__ . '/functions.php';
-$pageTitle = "Se Connecter";
+$pageTitle = "S'inscrire";
+
 
 if(!empty($_POST)){
-    $email = sanitizeInput($_POST['email'] ?? '', 1);
-    $password = sanitizeInput($_POST['password'] ?? '');
+$name = sanitizeInput($_POST['name'] ?? '', 1);
+$email = sanitizeInput($_POST['email'] ?? '', 1);
+$password = sanitizeInput($_POST['password'] ?? '');
 
-    // Validation
-    if(!$password || !$email){
-        setFlashMessage("Tous les champs sont requis", 'error');
-    }
+// Validation
+if(!$password || !$email || !$name){
+    setFlashMessage("Tous les champs sont requis", 'error');
+}
 
-    if(!filter_var($email, FILTER_VALIDATE_EMAIL)){
-        setFlashMessage("L'email n'est pas correct", 'error');
-    }
+if(strlen($name) < 3 || strlen($name) > 100){
+    setFlashMessage("Le nom doit être compris entre 3 et 100 caractères", 'error');
+}
 
-    // Si pas d'erreurs de validation
-    if(!hasErrors()){
-        if(login($email, $password)){
-            setFlashMessage("Vous êtes connecté", 'success');
-            redirectToHome();
-        } else {
-            setFlashMessage("Email ou mot de passe incorrect", 'error');
-        }
+if(!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 100){
+    setFlashMessage("L'email n'est pas correct", 'error');
+}
+
+if(strlen($email) > 100){
+    setFlashMessage("L'email doit contenir au maximum 100 caractères", 'error');
+}
+
+if(strlen($password) < 6){
+    setFlashMessage("Le mot de passe doit contenir au moins 6 caractères", 'error');
+}
+
+if(getOneByColumn("users", "email", $email)){
+    setFlashMessage("L'email est déjà utilisé", 'error');
+}
+
+// Si pas d'erreurs de validation
+if(!hasErrors()){
+    if(createUser($name, $email, $password)){
+        setFlashMessage("Inscription réussie", 'success');
+        login($email, $password);
+        redirectToHome();
+    } else {
+        setFlashMessage("Une erreur est survenue, veuillez réessayer plus tard", 'error');
     }
+}
 }
 ?>
 <?php include_once __DIR__ . '/include/header.php'; ?>
@@ -31,6 +50,12 @@ if(!empty($_POST)){
     <h3><?= $pageTitle ?></h3>
     <form action="" method="post" enctype="multipart/form-data">
         <?php displayFlash(); ?>
+         <!-- Input texte -->
+        <div class="mb-3">
+            <label for="name" class="form-label">name</label>
+            <input type="text" class="form-control" id="name" name="name" placeholder="Entrez votre nom" value="<?= $name ?? ''; ?>">
+        </div>
+
         <!-- Input texte -->
         <div class="mb-3">
             <label for="email" class="form-label">Email</label>
@@ -50,7 +75,7 @@ if(!empty($_POST)){
         </div>
 
         <button type="submit" class="btn btn-primary">Envoyer</button>
-        <p>Pas de compte? inscrivez vous <a href="/register.php">Ici</a></p>
+        <p>Déjà un compte? Connectez vous <a href="/login.php">Ici</a></p>
     </form>
 
 </div>
