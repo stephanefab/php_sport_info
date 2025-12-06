@@ -158,3 +158,5 @@ schema
    * Helpers simples pour rediriger l’utilisateur, utilisés par auth et upload si nécessaire.
 
 https://flagpedia.net/cote-d-ivoire
+
+https://commons.wikimedia.org/wiki/File:Flag_of_China.svg
