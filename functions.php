@@ -11,15 +11,16 @@ function getConnection(): PDO
     static $conn = null;
 
     if ($conn === null) {
-        global $driver, $host, $port, $dbname, $username, $password;
+        global $dbdriver, $dbhost, $dbport, $dbname, $dbusername, $dbpassword;
 
-        $dsn = "$driver:host=$host;port=$port;dbname=$dbname;charset=utf8";
+        $dsn = "$dbdriver:host=$dbhost;port=$dbport;dbname=$dbname;charset=utf8";
+        echo $dsn;
 
         try {
-            $conn = new PDO($dsn, $username, $password, [
+            $conn = new PDO($dsn, $dbusername, $dbpassword, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false
+                //PDO::ATTR_EMULATE_PREPARES => false
             ]);
         } catch (PDOException $e) {
             die('Erreur de connexion : ' . $e->getMessage());
@@ -548,4 +549,92 @@ function redirectToUrl(string $url): void
 function redirectToLogin(): void
 {
     redirectToUrl("/login.php");
+}
+
+function redirectToHome(): void
+{
+    redirectToUrl("/index.php");
+}
+
+/**
+ * Initialise le tableau de flash messages si nécessaire
+ */
+function initFlash(): void
+{
+    if (!isset($_SESSION['flash'])) {
+        $_SESSION['flash'] = [
+            'success' => [],
+            'error'   => [],
+            'info'    => []
+        ];
+    }
+}
+
+/**
+ * Ajoute un message flash
+ *
+ * @param string $message Le texte du message
+ * @param string $type 'success', 'error', 'info'
+ */
+function setFlashMessage(string $message, string $type = 'info'): void
+{
+    $type = strtolower($type);
+    if (!in_array($type, ['success', 'error', 'info'])) {
+        $type = 'info';
+    }
+
+    initFlash();
+    $_SESSION['flash'][$type][] = $message;
+}
+
+/**
+ * Shortcut pour un message d'erreur
+ */
+function setErrorMessage(string $message): void
+{
+    setFlashMessage($message, 'error');
+}
+
+/**
+ * Retourne vrai s'il y a au moins un message d'erreur
+ */
+function hasErrors(): bool
+{
+    initFlash();
+    return !empty($_SESSION['flash']['error']);
+}
+
+/**
+ * Affiche tous les messages flash et les supprime de la session
+ */
+function displayFlash(): void
+{
+    initFlash();
+
+    foreach (['success', 'error', 'info'] as $type) {
+        foreach ($_SESSION['flash'][$type] as $message) {
+            $bsType = $type === 'error' ? 'danger' : $type; // Bootstrap alert-danger pour error
+            echo '<div class="alert alert-' . $bsType . ' alert-dismissible fade show" role="alert">'
+                . htmlspecialchars($message) .
+                '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>';
+        }
+        // Vider les messages affichés
+        $_SESSION['flash'][$type] = [];
+    }
+}
+
+
+/**
+ * Nettoie une donnée reçue de l'utilisateur
+ *
+ * - trim() : supprime les espaces en début et fin
+ * - strip_tags() : supprime les balises HTML et PHP
+ *
+ * @param string $input Donnée à nettoyer
+ * @return string Donnée nettoyée
+ */
+function sanitizeInput(string $input): string
+{
+    return trim(strip_tags($input));
 }
