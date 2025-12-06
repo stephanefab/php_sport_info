@@ -93,7 +93,6 @@ if (isset($_FILES['avatar'])) {
 
 schema
 
-
     ┌─────────────────────┐
                          │   getConnection()   │
                          │  (PDO singleton)   │
@@ -144,7 +143,6 @@ schema
  │ redirectToLogin()  │
  └────────────────────┘
 
-
 ### Explications
 
 1. **Connexion à la DB**
@@ -158,3 +156,5 @@ schema
    * Vérification, sauvegarde et génération d’URL pour les fichiers uploadés.
 5. **Redirections**
    * Helpers simples pour rediriger l’utilisateur, utilisés par auth et upload si nécessaire.
+
+https://flagpedia.net/cote-d-ivoire
