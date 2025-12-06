@@ -56,3 +56,20 @@ CREATE TABLE users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+Utilisation de l'Upload de fichier
+
+if (isset($_FILES['avatar'])) {
+    $check = checkUpload($_FILES['avatar']);
+    if ($check) {
+        $path = saveUploadWithFolders($_FILES['avatar'], $check['name']);
+        if ($path) {
+            echo "Fichier uploadé avec succès : " . $path;
+            // Ici tu peux enregistrer $path dans ta table users ou autre
+        } else {
+            echo "Erreur lors de la sauvegarde du fichier.";
+        }
+    } else {
+        echo "Fichier invalide ou trop lourd.";
+    }
+}

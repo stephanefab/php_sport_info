@@ -415,3 +415,74 @@ function logout(): bool
 function isAdmin(): bool {
     return isset($_SESSION['user']) && $_SESSION['user']['role'] === 'admin';
 }
+
+/**
+ * Vérifie un fichier uploadé et génère un nom unique
+ *
+ * @param array $file Le fichier de $_FILES (ex: $_FILES['avatar'])
+ * @param array $allowedExtensions Extensions autorisées
+ * @param int $maxSize Taille max en octets
+ *
+ * @return array|false ['name' => string, 'timestamp' => int, 'extension' => string] ou false si erreur
+ */
+function checkUpload(array $file, array $allowedExtensions = ['jpg','png','jpeg','gif'], int $maxSize = 2097152)
+{
+    if ($file['error'] !== UPLOAD_ERR_OK) return false;
+
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExtensions)) return false;
+
+    if ($file['size'] > $maxSize) return false;
+
+    $timestamp = time();
+    $uniqueName = $timestamp . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
+
+    return [
+        'name'      => $uniqueName,
+        'timestamp' => $timestamp,
+        'extension' => $ext
+    ];
+}
+
+/**
+ * Sauvegarde un fichier uploadé dans un dossier structuré par date
+ *
+ * @param array $file Le fichier de $_FILES
+ * @param string $newName Nom du fichier généré par checkUpload()
+ * @param string $baseDir Dossier de base (ex: 'uploads')
+ *
+ * @return string|false Chemin complet du fichier sauvegardé ou false si erreur
+ */
+function saveUploadWithFolders(array $file, string $newName, string $baseDir = 'uploads')
+{
+    // Sous-dossier par date : uploads/YYYY/MM/DD
+    $subDir = date('Y/m/d');
+    $fullDir = rtrim($baseDir, '/') . '/' . $subDir;
+
+    if (!is_dir($fullDir)) mkdir($fullDir, 0755, true);
+
+    $destination = $fullDir . '/' . $newName;
+
+    if (move_uploaded_file($file['tmp_name'], $destination)) {
+        return $destination; // chemin complet à enregistrer en base
+    }
+
+    return false;
+}
+
+/**
+ * Retourne l'URL relative d'un fichier uploadé
+ *
+ * @param string $filePath Chemin complet renvoyé par saveUploadWithFolders()
+ * @param string $baseDir Dossier de base upload (ex: 'uploads')
+ *
+ * @return string URL relative
+ */
+function getUploadUrl(string $filePath, string $baseDir = 'uploads'): string
+{
+    // Retire le dossier de base du chemin
+    $relativePath = str_replace('\\', '/', $filePath); // Windows friendly
+    $relativePath = str_replace(rtrim($baseDir, '/') . '/', '', $relativePath);
+
+    return $baseDir . '/' . $relativePath;
+}
