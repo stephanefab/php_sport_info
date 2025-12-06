@@ -1,8 +1,8 @@
 <?php
     require_once __DIR__ . '/../functions.php';
-    if(!isAdmin()){
-        redirectToLogin();
-    }
+    isAdmin();
+
+    
 ?>
 
 <?php include_once __DIR__ . '/include/header.php'; ?>

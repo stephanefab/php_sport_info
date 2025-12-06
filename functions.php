@@ -346,6 +346,42 @@ function createDefaultAdmin(string $name = 'Admin', string $email = 'admin@examp
 }
 
 /**
+ * Met à jour le mot de passe d'un utilisateur
+ *
+ * @param int $userId ID de l'utilisateur
+ * @param string $newPassword Nouveau mot de passe en clair
+ * @return bool true si succès, false sinon
+ */
+function updatePassword(int $userId, string $newPassword): bool
+{
+    // Hasher le mot de passe
+    $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+    // Mettre à jour dans la table users
+    return update('users', $userId, ['password' => $hashedPassword]);
+}
+
+/**
+ * Retourne l'utilisateur actuellement connecté
+ *
+ * @return array|null Tableau associatif de l'utilisateur ou null si pas connecté
+ */
+function getCurrentUser(): ?array
+{
+    if (!isset($_SESSION['user'])) {
+        return null;
+    }
+
+    $userId = $_SESSION['user']['id'] ?? null;
+    if (!$userId) {
+        return null;
+    }
+
+    return getOneByColumn('users', 'id', $userId);
+}
+
+
+/**
  * Crée un utilisateur normal
  *
  * @param string $name
@@ -399,21 +435,30 @@ function login(string $email, string $password): bool
 /**
  * Déconnecte l'utilisateur courant
  */
-function logout(): bool
+function logout(): void
 {
     // Détruire la session
     if (isset($_SESSION['user'])) {
         unset($_SESSION['user']);
         session_destroy();
-        return true;
+        redirectToUrl("/index.php");
     }
-
-    // Optionnel : détruire complètement la session
-    return false;
 }
 
-function isAdmin(): bool {
-    return isset($_SESSION['user']) && $_SESSION['user']['role'] === 'admin';
+function isAdmin(): void {
+    if(!isLogged() || $_SESSION['user']['role'] != 'admin'){
+        redirectToLogin();
+    }
+}
+
+function isUser(): void {
+    if (!isLogged() || $_SESSION['user']['role'] !== 'user') {
+        redirectToLogin();
+    }
+}
+
+function isLogged(): bool {
+   return (isset($_SESSION['user']) && getOneByColumn("users", "id", $_SESSION['user']['id']));
 }
 
 /**
@@ -489,9 +534,16 @@ function getUploadUrl(string $filePath, string $baseDir = 'uploads'): string
 
 function redirectToUrl(string $url): void
 {
-    header("Location: $url");
-    exit();
+    if (!headers_sent()) { // Vérifie que les headers ne sont pas encore envoyés
+        header("Location: $url");
+        exit();
+    } else {
+        // Fallback si les headers sont déjà envoyés
+        echo "<script>window.location.href='" . htmlspecialchars($url, ENT_QUOTES) . "';</script>";
+        exit();
+    }
 }
+
 
 function redirectToLogin(): void
 {
