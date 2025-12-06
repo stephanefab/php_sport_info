@@ -57,6 +57,9 @@ CREATE TABLE users (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+ALTER TABLE `users`
+ADD COLUMN `path` VARCHAR(255) DEFAULT NULL;
+
 Utilisation de l'Upload de fichier
 
 if (isset($_FILES['avatar'])) {
