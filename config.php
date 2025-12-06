@@ -1,7 +1,7 @@
 <?php
-$driver = "mysql";
-$host = "localhost";
-$port = "3306" ;
-$dbname = "sports";
-$username = "root";
-$password = "";
+$dbdriver = "mysql";
+$dbhost = "localhost";
+$dbport = "3306";
+$dbname = "infosports";
+$dbusername = "fabien";
+$dbpassword = "";
