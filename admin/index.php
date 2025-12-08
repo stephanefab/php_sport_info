@@ -21,7 +21,7 @@ $user = getCurrentUser();
             ['title' => 'Pays', 'color' => 'primary', 'text' => 'Gérer la liste des pays', 'link' => '/admin/countries', 'count' => getCountAll('pays')],
             ['title' => 'Sports', 'color' => 'success', 'text' => 'Gérer les sports', 'link' => '/admin/sports', 'count' => getCountAll('sports')],
             ['title' => 'Equipes', 'color' => 'warning', 'text' => 'Gérer les équipes', 'link' => '/admin/teams', 'count' => getCountAll('teams')],
-            ['title' => 'Matchs', 'color' => 'danger', 'text' => 'Gérer les matchs', 'link' => '/admin/matchs', 'count' => getCountAll('matches')],
+            ['title' => 'Matchs', 'color' => 'danger', 'text' => 'Gérer les matchs', 'link' => '/admin/matchs', 'count' => getCountAll('matchs')],
         ];
 
         foreach($sections as $sec): ?>

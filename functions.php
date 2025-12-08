@@ -135,7 +135,7 @@ function getAll(string $table, int $page = 1, int $limit = 10, ?string $interval
     }
 
     // Récupérer les résultats
-    $stmt = getConnection()->prepare("SELECT * FROM `$table` $where ORDER BY name LIMIT :limit OFFSET :offset");
+    $stmt = getConnection()->prepare("SELECT * FROM `$table` $where ORDER BY id LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
